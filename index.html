@@ -12,9 +12,8 @@
             display: flex;
             height: 95%;
         }
-
         .left-nav {
-            flex: 0 0 10%;
+            flex: 0 0 15%;
             border-right: 1px solid #ddd;
         }
         .main-content {
@@ -24,6 +23,10 @@
         .top-nav {
             height: 5%;
             border-bottom: 1px solid #ddd;
+        }
+        .navbar-input {
+            padding-left: 5%;
+            width: 90%;
         }
     </style>
 </head>
@@ -38,28 +41,35 @@
         <nav class="left-nav bg-light">
             <br/>
             <ul class="nav flex-column">
-                <li class="nav-item"><a class="nav-link" href="#">New Chat</a></li>
+                <li class="nav-item"><a class="nav-link" href="#" onclick="new_chat()">New Chat</a></li>
                 <li class="nav-item"><a class="nav-link" href="#">Import Chat</a></li>
                 <li class="nav-item"><a class="nav-link" href="#">Export Chat</a></li>
-                <!-- Some kind of separator?? -->
-                <li class="nav-item"><a class="nav-link" href="#">Select Model</a></li>
             </ul>
+
+            <br/>
+            <hr style="border-top: 1px solid #ddd;"/>
+            <br/>
+
+            <div class="form-group navbar-input">
+                <label for="apiKeyInput">API Key: </label>
+                <input type="text" class="form-control" id="api_key_input" placeholder="">
+            </div>
+            <div class="form-group navbar-input">
+                <label for="modelSelect">Model: </label>
+                <select class="form-control" id="model_select">
+                    <option>gpt-4-1106-preview</option>
+                    <option>gpt-3.5-turbo-1106</option>
+                </select>
+            </div>
+        
         </nav>
 
         <!-- Main Content within Bootstrap Grid -->
         <div class="col-12 main-content d-flex justify-content-center">
             <form class="w-50">
-                <div class="form-group">
-                    <label for="textarea1">Text Area 1</label>
-                    <textarea class="form-control" id="textarea1" rows="3"></textarea>
-                </div>
-                <hr>
-                <div class="form-group">
-                    <label for="textarea2">Text Area 2</label>
-                    <textarea class="form-control" id="textarea2" rows="3"></textarea>
-                </div>
+                <div id="chat_content"></div>
                 <div class="text-right">
-                    <button type="submit" class="btn btn-primary">Submit</button>
+                    <button type="button" class="btn btn-primary" onclick="submit_request()">Submit</button>
                 </div>
             </form>
         </div>
@@ -68,5 +78,188 @@
     <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.0.5/dist/umd/popper.min.js"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+
+    <script type="text/javascript">
+        // globals
+        // number of text areas
+        var NUM_INPUTS = 2; 
+        // array of messages in conversation, populate with default system prompt
+        var MESSAGES = [
+            "You are a helpful assistant.",
+            ""
+        ];
+
+
+        /**
+         * Creates a string containing the HTML needed for a conversation text 
+         * area.
+         * 
+         * @param {number} idx - Index of the textarea in the conversation form.
+         * @param {string} role - Role associated with this textarea.
+         * @returns {string}
+         */
+        function create_textarea(idx, role) {
+            var textarea = '<div class="form-group">\n';
+            textarea += `<label for="textarea${idx}"><b>${role}</b></label>\n`;
+            // TODO: add number of rows as argument, display whole text
+            textarea += `<textarea class="form-control" id="textarea${idx}" rows="3">`;
+            textarea += MESSAGES[idx];
+            textarea += '</textarea>\n';                   
+            textarea += '</div>\n';
+            return textarea;
+        }
+
+        /**
+         * 
+         */
+        function populate_form() {
+            // clear form
+            document.getElementById("chat_content").innerHTML = "";
+            // add appropriate number of text areas
+            for (var i = 0; i < NUM_INPUTS; i++) {
+                var textarea;
+                if (i == 0) {
+                    textarea = create_textarea(i, "System Prompt");
+                }
+                else if (i % 2 == 1) {
+                    textarea = create_textarea(i, "User");
+                }
+                else {
+                    textarea = create_textarea(i, "Assistant");
+                }
+
+                document.getElementById("chat_content").innerHTML += textarea;
+                if (i + 1 < NUM_INPUTS) {
+                    document.getElementById("chat_content").innerHTML += "<hr/>\n";
+                }
+            }
+        }
+
+        /**
+         * 
+         */
+        function submit_request() {
+            // store message text from text areas
+            MESSAGES = [];
+            var i;
+            for (i = 0; i < NUM_INPUTS; i++) {
+                MESSAGES.push(document.getElementById(`textarea${i}`).value);
+            }
+            // do nothing for empty submission
+            if (MESSAGES[MESSAGES.length - 1].trim() === "") {
+                return;
+            }
+
+            // check for API key
+            var api_key_input = document.getElementById("api_key_input").value.trim();
+            if (api_key_input === "") {
+                alert("Provide your OpenAI API key.")
+                return;
+            }
+            // get model
+            var model = document.getElementById("model_select").value;
+
+            // create JSON request OpenAI API expects
+            var request_data = {
+                "model" : model,
+                "messages" : []
+            };
+            for (i = 0; i < NUM_INPUTS; i++) {
+                var role;
+                if (i == 0) {
+                    role = "system";
+                }
+                else if (i % 2 == 1) {
+                    role = "user";
+                }
+                else {
+                    role = "assistant";
+                }
+                request_data["messages"].push({
+                    "role" : role,
+                    "content" : MESSAGES[i]
+                });
+            }
+            //console.log("Request:");
+            //console.log(request_data);
+
+            // submit request to API, handle response
+            var debugging = false;
+            if (!debugging) {
+                fetch("https://api.openai.com/v1/chat/completions", {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${api_key_input}`
+                    },
+                    body: JSON.stringify(request_data)
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
+                .then(response_data => {
+                    //console.log("Response:");
+                    //console.log(response_data);
+                    // call handling function
+                    display_response(response_data["choices"][0]["message"]["content"]);
+                })
+                .catch(error => {
+                    console.error('There was a problem with your fetch operation:', error);
+                });
+
+                // "waiting" user feedback 
+                document.getElementById(`textarea${MESSAGES.length - 1}`).innerHTML = document.getElementById(`textarea${MESSAGES.length - 1}`).value;
+                document.getElementById("chat_content").innerHTML += "<hr/>\n";
+                NUM_INPUTS += 1;
+                MESSAGES.push("Waiting for response...");
+                textarea = create_textarea(NUM_INPUTS - 1, "Assistant");
+                document.getElementById("chat_content").innerHTML += textarea;
+            }
+            else {
+                // "waiting" user feedback 
+                document.getElementById(`textarea${MESSAGES.length - 1}`).innerHTML = document.getElementById(`textarea${MESSAGES.length - 1}`).value;
+                document.getElementById("chat_content").innerHTML += "<hr/>\n";
+                NUM_INPUTS += 1;
+                MESSAGES.push("Waiting for response...");
+                textarea = create_textarea(NUM_INPUTS - 1, "Assistant");
+                document.getElementById("chat_content").innerHTML += textarea;
+
+                // simulate delay
+                (async () => {
+                    await new Promise(resolve => setTimeout(resolve, 3000));
+                    display_response("The powerhouse of the cell is the mitochondria. It is responsible for generating the majority of the cell's supply of adenosine triphosphate (ATP), which is used as a source of chemical energy.");
+                })();
+            }
+        }
+
+        /**
+         * 
+         */
+        function display_response(response) {
+            //console.log(response);
+            MESSAGES[MESSAGES.length - 1] = response;
+            NUM_INPUTS += 1;
+            MESSAGES.push("");
+            populate_form();
+        }
+
+        /**
+         * 
+         */ 
+        function new_chat() {
+            // keep whatever system prompt has been set to
+            MESSAGES[0] = document.getElementById("textarea0").value;
+            NUM_INPUTS = 2;
+            MESSAGES = MESSAGES.slice(0, NUM_INPUTS);
+            MESSAGES[1] = "";
+            populate_form();
+        }
+
+        populate_form();
+        </script>
+
 </body>
 </html>
