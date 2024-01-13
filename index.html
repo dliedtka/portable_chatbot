@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Portable ChatUI</title>
+    <link href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+        }
+        .wrapper {
+            display: flex;
+            height: 95%;
+        }
+
+        .left-nav {
+            flex: 0 0 10%;
+            border-right: 1px solid #ddd;
+        }
+        .main-content {
+            flex: 1; /* Take up the remaining space */
+            padding: 20px;
+        }
+        .top-nav {
+            height: 5%;
+            border-bottom: 1px solid #ddd;
+        }
+    </style>
+</head>
+<body>
+    <!-- top navbar -->
+    <nav class="navbar navbar-expand-lg navbar-light bg-light top-nav">
+        <a class="navbar-brand" href="#">Portable ChatUI</a>
+    </nav>
+
+    <div class="wrapper">
+        <!-- Left Navbar -->
+        <nav class="left-nav bg-light">
+            <br/>
+            <ul class="nav flex-column">
+                <li class="nav-item"><a class="nav-link" href="#">New Chat</a></li>
+                <li class="nav-item"><a class="nav-link" href="#">Import Chat</a></li>
+                <li class="nav-item"><a class="nav-link" href="#">Export Chat</a></li>
+                <!-- Some kind of separator?? -->
+                <li class="nav-item"><a class="nav-link" href="#">Select Model</a></li>
+            </ul>
+        </nav>
+
+        <!-- Main Content within Bootstrap Grid -->
+        <div class="col-12 main-content d-flex justify-content-center">
+            <form class="w-50">
+                <div class="form-group">
+                    <label for="textarea1">Text Area 1</label>
+                    <textarea class="form-control" id="textarea1" rows="3"></textarea>
+                </div>
+                <hr>
+                <div class="form-group">
+                    <label for="textarea2">Text Area 2</label>
+                    <textarea class="form-control" id="textarea2" rows="3"></textarea>
+                </div>
+                <div class="text-right">
+                    <button type="submit" class="btn btn-primary">Submit</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.0.5/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+</body>
+</html>
