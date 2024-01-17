@@ -12,21 +12,37 @@
             display: flex;
             height: 95%;
         }
+        .top-nav {
+            height: 5%;
+            border-bottom: 1px solid #ddd;
+        }
         .left-nav {
             flex: 0 0 15%;
             border-right: 1px solid #ddd;
+        }
+        .right-nav {
+            flex: 0 0 15%;
+            border-left: 1px solid #ddd;
+        }
+        .navbar-item{
+            padding-left: 5%;
+            width: 90%;
         }
         .main-content {
             flex: 1; /* Take up the remaining space */
             padding: 20px;
         }
-        .top-nav {
-            height: 5%;
-            border-bottom: 1px solid #ddd;
+        .hidden_div {
+            visibility: hidden;
+            position: absolute;
+            top: 0;
+            left: 0;
+            overflow-wrap: break-word;
+            width: 63%; /* needs to be slightly smaller than styling set in main content */
         }
-        .navbar-input {
-            padding-left: 5%;
-            width: 90%;
+        .scrollable_div {
+            max-height: 100%;
+            overflow-y: auto; /* Enables vertical scrolling */
         }
     </style>
 </head>
@@ -35,50 +51,79 @@
     <nav class="navbar navbar-expand-lg navbar-light bg-light top-nav">
         <a class="navbar-brand" href="#">Portable ChatUI</a>
     </nav>
-
     <div class="wrapper">
-        <!-- Left Navbar -->
+        <!-- left navbar -->
         <nav class="left-nav bg-light">
             <br/>
-            <ul class="nav flex-column">
-                <li class="nav-item"><a class="nav-link" href="#" onclick="new_chat()">New Chat</a></li>
-                <li class="nav-item"><a class="nav-link" href="#">Import Chat</a></li>
-                <li class="nav-item"><a class="nav-link" href="#">Export Chat</a></li>
-            </ul>
-
+            <!-- new chat -->
+            <div class="form-group navbar-item">
+                <input type="button" class="form-control" value="New Chat" onclick="new_chat()">
+            </div>
+            <br/><hr style="border-top: 1px solid #ddd;"/><br/>
+            <!-- conversation history display -->
+            <div id="conversation_history">
+                <div class="form-group navbar-item">
+                    <p>Your conversation history will display here if you choose to link with you Google Drive account (recommended) or manually import a conversation history file.</p>
+                    <p>Further details and instructions are available <a href="">here</a>.</p>
+                </div>
+            </div>
+        </nav>
+        <!-- Main Content within Bootstrap Grid -->
+        <div class="col-12 main-content d-flex justify-content-center scrollable_div">
+            <form style="width: 67%;">
+                <!-- hidden div for auto resizing -->
+                <div class="form-group"><div class="hidden_div" id="hiddendiv"></div></div>
+                <div id="chat_content"></div>
+                <div class="text-right">
+                    <button type="button" class="btn btn-primary" onclick="submit_request()">Submit</button>
+                </div>
+                <br/><br/>
+            </form>
+        </div>
+        <!-- right navbar -->
+        <nav class="right-nav bg-light">
             <br/>
-            <hr style="border-top: 1px solid #ddd;"/>
-            <br/>
-
-            <div class="form-group navbar-input">
-                <label for="apiKeyInput">API Key: </label>
+            <!-- openai api inputs -->
+            <div class="form-group navbar-item">
+                <label for="api_key_input">OpenAI API Key: </label>
                 <input type="text" class="form-control" id="api_key_input" placeholder="">
             </div>
-            <div class="form-group navbar-input">
-                <label for="modelSelect">Model: </label>
+            <div class="form-group navbar-item">
+                <label for="model_select">Model: </label>
                 <select class="form-control" id="model_select">
                     <option>gpt-4-1106-preview</option>
                     <option>gpt-3.5-turbo-1106</option>
                 </select>
             </div>
-        
+            <br/><hr style="border-top: 1px solid #ddd;"/><br/>
+            <!-- import/export/link conversation history -->
+            <div class="form-group navbar-item">
+                <label for="google_api_key">Google Drive API Key: </label>
+                <input type="text" class="form-control" id="google_api_key" placeholder="">
+                <input type="button" class="form-control" id="link_history" value="Link Conversation History" onclick="link_history()">
+            </div>
+            <div class="form-group navbar-item">
+                <input type="file" class="form-control" id="history_upload_file">
+                <input type="button" class="form-control" id="history_upload" value="Import Conversation History" onclick="import_history()">
+            </div>
+            <div class="form-group navbar-item">
+                <input type="button" class="form-control" id="history_download" value="Export Conversation History" onclick="export_history()">
+            </div>
+            <br/><hr style="border-top: 1px solid #ddd;"/><br/>
+            <!-- import/export chat-->
+            <div class="form-group navbar-item">
+                <input type="file" class="form-control" id="chat_upload_file">
+                <input type="button" class="form-control" id="chat_upload" value="Import Chat" onclick="import_chat()">
+            </div>
+            <div class="form-group navbar-item">
+                <input type="button" class="form-control" id="chat_download" value="Export Chat" onclick="export_chat()">
+            </div>
         </nav>
 
-        <!-- Main Content within Bootstrap Grid -->
-        <div class="col-12 main-content d-flex justify-content-center">
-            <form class="w-50">
-                <div id="chat_content"></div>
-                <div class="text-right">
-                    <button type="button" class="btn btn-primary" onclick="submit_request()">Submit</button>
-                </div>
-            </form>
-        </div>
     </div>
-
     <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.0.5/dist/umd/popper.min.js"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
-
     <script type="text/javascript">
         // globals
         // number of text areas
@@ -88,20 +133,23 @@
             "You are a helpful assistant.",
             ""
         ];
-
+        // will need globals for history type/status, active chat, etc.
 
         /**
-         * Creates a string containing the HTML needed for a conversation text 
-         * area.
+         * Creates a string containing the HTML needed for a conversation 
+         * textarea.
          * 
          * @param {number} idx - Index of the textarea in the conversation form.
          * @param {string} role - Role associated with this textarea.
          * @returns {string}
          */
         function create_textarea(idx, role) {
+            // TODO: compute number of rows, display whole text
+            // appears to be 63 cols across in current setting
+            // see if there's a way to just do this automatically?
+            // yes, also here insert hidden divs for styling, get height from that
             var textarea = '<div class="form-group">\n';
             textarea += `<label for="textarea${idx}"><b>${role}</b></label>\n`;
-            // TODO: add number of rows as argument, display whole text
             textarea += `<textarea class="form-control" id="textarea${idx}" rows="3">`;
             textarea += MESSAGES[idx];
             textarea += '</textarea>\n';                   
@@ -111,6 +159,33 @@
 
         /**
          * 
+         */
+         function auto_resize_textarea() {
+            var textarea = this;
+            var hidden_div = document.getElementById("hiddendiv");
+            hidden_div.textContent = textarea.value;
+            var height = hidden_div.offsetHeight;
+            var new_size = height + 24;
+            // take into account new line chars
+            var new_lines = textarea.value.match(/\n/g)
+            if (new_lines) {
+                new_lines = new_lines.length;
+            }
+            else {
+                new_lines = 0;
+            }
+            new_size += new_lines * 24;
+            if (new_size < 48) {
+                new_size = 48;
+            }
+            textarea.style.height = new_size + 'px';
+        }
+
+        /**
+         * Renders the main content of the page to reflect the current 
+         * conversation.
+         * 
+         * @returns {void}
          */
         function populate_form() {
             // clear form
@@ -133,10 +208,23 @@
                     document.getElementById("chat_content").innerHTML += "<hr/>\n";
                 }
             }
+
+            // testing...
+            for (var i = 0; i < NUM_INPUTS; i++) {
+                textarea = document.getElementById(`textarea${i}`);
+                    textarea.addEventListener('input', auto_resize_textarea);
+                    auto_resize_textarea.call(textarea)
+            }
+
+            return;
         }
 
         /**
+         * Updates the global message variable based on filled out textareas, 
+         * verifies inputs, submits OpenAI API request, receives and renders 
+         * response.
          * 
+         * TODO: Add updating conversation history.
          */
         function submit_request() {
             // store message text from text areas
@@ -149,7 +237,6 @@
             if (MESSAGES[MESSAGES.length - 1].trim() === "") {
                 return;
             }
-
             // check for API key
             var api_key_input = document.getElementById("api_key_input").value.trim();
             if (api_key_input === "") {
@@ -158,7 +245,6 @@
             }
             // get model
             var model = document.getElementById("model_select").value;
-
             // create JSON request OpenAI API expects
             var request_data = {
                 "model" : model,
@@ -182,7 +268,6 @@
             }
             //console.log("Request:");
             //console.log(request_data);
-
             // submit request to API, handle response
             var debugging = false;
             if (!debugging) {
@@ -205,11 +290,11 @@
                     //console.log(response_data);
                     // call handling function
                     display_response(response_data["choices"][0]["message"]["content"]);
+                    update_history(response);
                 })
                 .catch(error => {
                     console.error('There was a problem with your fetch operation:', error);
                 });
-
                 // "waiting" user feedback 
                 document.getElementById(`textarea${MESSAGES.length - 1}`).innerHTML = document.getElementById(`textarea${MESSAGES.length - 1}`).value;
                 document.getElementById("chat_content").innerHTML += "<hr/>\n";
@@ -226,28 +311,47 @@
                 MESSAGES.push("Waiting for response...");
                 textarea = create_textarea(NUM_INPUTS - 1, "Assistant");
                 document.getElementById("chat_content").innerHTML += textarea;
-
                 // simulate delay
                 (async () => {
                     await new Promise(resolve => setTimeout(resolve, 3000));
                     display_response("The powerhouse of the cell is the mitochondria. It is responsible for generating the majority of the cell's supply of adenosine triphosphate (ATP), which is used as a source of chemical energy.");
+                    update_history(response);
                 })();
             }
+            return;
         }
 
         /**
+         * Handles displaying the received API response.
          * 
+         * @param {string} response - The content string returned by the OpenAI 
+         * API.
          */
         function display_response(response) {
-            //console.log(response);
             MESSAGES[MESSAGES.length - 1] = response;
             NUM_INPUTS += 1;
             MESSAGES.push("");
             populate_form();
+            return;
         }
 
         /**
+         * TODO: If a conversation history is active, will update the assocaited 
+         * data structure based on API response.
          * 
+         * @param {string} response - The content string returned by the OpenAI 
+         * API.
+         */
+        function update_history(response) {
+            // TODO
+            return;
+        }
+
+        /**
+         * Resets the form content to a new chat, keeping the system prompt.
+         * 
+         * TODO: If a conversation history is active, this will need to set the
+         * active conversation to a new one.
          */ 
         function new_chat() {
             // keep whatever system prompt has been set to
@@ -256,10 +360,93 @@
             MESSAGES = MESSAGES.slice(0, NUM_INPUTS);
             MESSAGES[1] = "";
             populate_form();
+            return;
         }
 
+        /**
+         * Creates and downloads a JSON file representation of the current 
+         * active chat.
+         */
+        function export_chat() {
+            // update messages array
+            for (var i = 0; i < MESSAGES.length; i++) {
+                MESSAGES[i] = document.getElementById(`textarea${i}`).value;
+            }
+            // convert array to bytes
+            const jsonString = JSON.stringify(MESSAGES);
+            const encoder = new TextEncoder();
+            const byteData = encoder.encode(jsonString);
+            // create a Blob from the byte data
+            const blob = new Blob([byteData], { type: "application/octet-stream" });
+            // create a URL for the Blob
+            const url = URL.createObjectURL(blob);
+            // create an anchor tag for downloading
+            const downloadLink = document.createElement("a");
+            downloadLink.href = url;
+            downloadLink.download = "conversation.json"; // Set the file name for download
+            // append the anchor tag to the document or trigger a click programmatically
+            document.body.appendChild(downloadLink);
+            downloadLink.click();
+            // revoke the URL when done
+            downloadLink.addEventListener('click', () => {
+                setTimeout(() => URL.revokeObjectURL(url), 100);
+            });
+            return;
+        }
+
+        /**
+         * Attempts to take an uploaded JSON representation of a chat and makes 
+         * it the current active chat. Does not error handle bad files (just 
+         * reload the page, buddy...).
+         */
+        function import_chat() {
+            // get uploaded file
+            const file = document.getElementById("chat_upload_file").files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    // read bytes into array
+                    const arrayBuffer = reader.result;
+                    // TODO: maybe I can skip these two conversions? go directly bytes -> string?
+                    // convert bytes to uint8
+                    const byteArray = new Uint8Array(arrayBuffer);
+                    // convert to string
+                    let stringData = new TextDecoder().decode(byteArray);
+                    // set variables for active chat, render
+                    MESSAGES = JSON.parse(stringData);
+                    NUM_INPUTS = MESSAGES.length
+                    populate_form();
+                };
+                // read the file
+                reader.readAsArrayBuffer(file);
+            }
+            return;
+        }
+
+        /**
+         * TODO: Will link with user's Google Drive account, allowing for 
+         * automatic pull and updates of user's conversation history.
+         */ 
+        function link_history() {
+            alert("Not implemented yet...");
+        }
+
+        /**
+         * TODO: Will allow you to import conversation history form a file.
+         */ 
+         function import_history() {
+            alert("Not implemented yet...");
+        }
+
+        /**
+         * TODO: Will allow you to export conversation history to a file.
+         */ 
+         function export_history() {
+            alert("Not implemented yet...");
+        }
+
+        // render on page load
         populate_form();
         </script>
-
 </body>
 </html>
