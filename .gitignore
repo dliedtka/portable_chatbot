@@ -1,6 +1,7 @@
 todo.md
 tmp.txt
-test.json
+test_chat.json
+test_history.json
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
