@@ -1,6 +1,6 @@
 # Portable ChatUI
 
-Inspired by [Chatbot UI](https://github.com/mckaywrigley/chatbot-ui), Portable ChatUI provides a no-frills UI that allows you to interact with the OpenAI API in settings where a more portable solution is needed (say, for example, you can't install `npm`). 
+Portable ChatUI provides a no-frills UI that allows you to interact with the OpenAI API in settings where a more portable solution is needed (say, for example, you can't install `npm`). 
 
 For many OpenAI customers, GPT-3.5, available for free via ChatGPT, is sufficient for many tasks. GPT-4 may be needed for more complex tasks, but that need is infrequent enough that it is not cost-effective for users to pay $20 per month for access to GPT-4 via ChatGPT. Solutions like Portable ChatUI allow users to pay only for what they use (see [OpenAI API pricing](https://openai.com/pricing)).
 
@@ -15,3 +15,4 @@ To-Do List
 - Price calculator/estimator.
 - Stream responses.
 - Set other API parameters (temperature, etc.).
+- Option to opt in to automatic chat naming.

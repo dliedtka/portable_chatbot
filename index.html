@@ -40,9 +40,13 @@
             overflow-wrap: break-word;
             width: 63%; /* needs to be slightly smaller than styling set in main content */
         }
-        .scrollable_div {
+        .scrollable_form {
             max-height: 100%;
             overflow-y: auto; /* Enables vertical scrolling */
+        }
+        .scrollable_left {
+            /* set max-height dynamically with JS */
+            overflow-y: auto;
         }
         .chat-item:hover {
             background-color: #ddd;
@@ -65,31 +69,38 @@
     </nav>
     <div class="wrapper">
         <!-- left navbar -->
-        <nav class="left-nav bg-light">
-            <br/>
-            <!-- new chat -->
-            <div class="form-group navbar-item">
-                <input type="button" class="form-control" value="New Chat" onclick="new_chat()">
-            </div>
-            <!-- rename chat -->
-            <div class="form-group navbar-item">
-                <input type="button" class="form-control" value="Rename Chat" onclick="rename_chat()">
-            </div>
-            <!-- delete chat -->
-            <div class="form-group navbar-item">
-                <input type="button" class="form-control" value="Delete Chat" onclick="delete_chat()">
-            </div>
-            <br/><hr style="border-top: 1px solid #ddd;"/><br/>
-            <!-- conversation history display -->
-            <div id="conversation_history">
+        <nav class="left-nav bg-light" id="left_navbar">
+            <div id="above_scrollable" class="above_scrollable">
+                <br/>
+                <!-- new chat -->
                 <div class="form-group navbar-item">
-                    <p>Your conversation history will display here if you <!--choose to link with you Google Drive account (recommended) or--> manually import a conversation history file.</p>
-                    <!--<p>Further details and instructions are available <a href="">here</a>.</p>-->
+                    <input type="button" class="form-control" value="New Chat" onclick="new_chat()">
+                </div>
+                <!-- rename chat -->
+                <div class="form-group navbar-item">
+                    <input type="button" class="form-control" value="Rename Chat" onclick="rename_chat()">
+                </div>
+                <!-- copy chat -->
+                <div class="form-group navbar-item">
+                    <input type="button" class="form-control" value="Copy Chat" onclick="copy_chat()">
+                </div>
+                <!-- delete chat -->
+                <div class="form-group navbar-item">
+                    <input type="button" class="form-control" value="Delete Chat" onclick="delete_chat()">
+                </div>
+                <br/><hr style="border-top: 1px solid #ddd;"/><br/>
+            </div>
+            <!-- conversation history display -->
+            <div id="conversation_history" class="scrollable_left">
+                <div class="form-group navbar-item">
+                    <p>Your conversation history will display here if you choose to link with Dropbox (recommended) or manually import a conversation history file.</p>
+                    <!-- TODO: link to website -->
+                    <p>Further details and instructions are available <a href="#">here</a>.</p>
                 </div>
             </div>
         </nav>
         <!-- Main Content within Bootstrap Grid -->
-        <div class="col-12 main-content d-flex justify-content-center scrollable_div">
+        <div class="col-12 main-content d-flex justify-content-center scrollable_form">
             <form style="width: 67%;">
                 <!-- hidden div for auto resizing -->
                 <div class="form-group"><div class="hidden_div" id="hiddendiv"></div></div>
@@ -116,29 +127,16 @@
                 </select>
             </div>
             <br/><hr style="border-top: 1px solid #ddd;"/><br/>
-            <!--
-            < !-- import/export/link conversation history -- >
-            <div class="form-group navbar-item">
-                <label for="google_api_key">Google Drive API Key: </label>
-                <input type="text" class="form-control" id="google_api_key" placeholder="">
-                <input type="button" class="form-control" id="link_history" value="Link Conversation History" onclick="link_history()">
+            <!-- import/export/link conversation history -->
+            <div class="form-group navbar-item" id="dropbox_div">
+                <!-- filled in by JS -->
             </div>
-            -->
             <div class="form-group navbar-item">
                 <input type="file" class="form-control" id="history_upload_file">
                 <input type="button" class="form-control" id="history_upload" value="Import Conversation History" onclick="import_history()">
             </div>
             <div class="form-group navbar-item">
                 <input type="button" class="form-control" id="history_download" value="Export Conversation History" onclick="export_history()">
-            </div>
-            <br/><hr style="border-top: 1px solid #ddd;"/><br/>
-            <!-- import/export chat-->
-            <div class="form-group navbar-item">
-                <input type="file" class="form-control" id="chat_upload_file">
-                <input type="button" class="form-control" id="chat_upload" value="Import Chat" onclick="import_chat()">
-            </div>
-            <div class="form-group navbar-item">
-                <input type="button" class="form-control" id="chat_download" value="Export Chat" onclick="export_chat()">
             </div>
         </nav>
 
@@ -148,16 +146,13 @@
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
     <script type="text/javascript">
         // globals
-        // number of text areas
-        var NUM_INPUTS = 2; 
-        // array of messages in conversation, populate with default system prompt
-        var MESSAGES = [
-            "You are a helpful assistant.",
-            ""
-        ];
-        // will need globals for history type/status, active chat, etc.
+        // array of past conversations
         var HISTORY = [];
+        // stores if a previous conversation is loaded and if so its index
         var ACTIVE_CHAT = null;
+        // stores whether the conversation history is linked with the Dropbox 
+        // API (and should be updated)
+        var HISTORY_LINKED = false;
 
         /**
          * Creates a string containing the HTML needed for a conversation 
@@ -165,24 +160,36 @@
          * 
          * @param {number} idx - Index of the textarea in the conversation form.
          * @param {string} role - Role associated with this textarea.
+         * @param {string} content - The text to display in the textarea.
          * @returns {string}
          */
-        function create_textarea(idx, role) {
-            // TODO: compute number of rows, display whole text
-            // appears to be 63 cols across in current setting
-            // see if there's a way to just do this automatically?
-            // yes, also here insert hidden divs for styling, get height from that
+        function create_textarea(idx, role, content) {
+            if (role == "system") {
+                var print_role = "System Prompt";
+            }
+            else if (role == "user") {
+                var print_role = "User";
+            }
+            else if (role == "Assistant") {
+                var print_role = role;    
+            }
+            else {
+                var print_role = role;
+            }
             var textarea = '<div class="form-group">\n';
-            textarea += `<label for="textarea${idx}"><b>${role}</b></label>\n`;
-            textarea += `<textarea class="form-control" id="textarea${idx}" rows="3">`;
-            textarea += MESSAGES[idx];
+            textarea += `<label for="textarea${idx}"><b>${print_role}</b></label>\n`;
+            textarea += `<textarea class="form-control content_input" id="textarea${idx}" rows="3">`;
+            textarea += content;
             textarea += '</textarea>\n';                   
             textarea += '</div>\n';
             return textarea;
         }
 
         /**
+         * Event listener that when called for a textarea, resizes the vertical 
+         * height to fit the content.
          * 
+         * @returns {null}
          */
          function auto_resize_textarea() {
             var textarea = this;
@@ -203,6 +210,7 @@
                 new_size = 48;
             }
             textarea.style.height = new_size + 'px';
+            return;
         }
 
         /**
@@ -214,32 +222,35 @@
         function populate_form() {
             // clear form
             document.getElementById("chat_content").innerHTML = "";
+            if (ACTIVE_CHAT !== null) {
+                var messages = HISTORY[ACTIVE_CHAT].messages;
+            }
+            else {
+                var messages = [
+                    {   "role": "system",
+                        "content": "You are a helpful assistant."
+                    },
+                    {
+                        "role": "user",
+                        "content": ""
+                    }
+                ];
+            }
             // add appropriate number of text areas
-            for (var i = 0; i < NUM_INPUTS; i++) {
-                var textarea;
-                if (i == 0) {
-                    textarea = create_textarea(i, "System Prompt");
-                }
-                else if (i % 2 == 1) {
-                    textarea = create_textarea(i, "User");
-                }
-                else {
-                    textarea = create_textarea(i, "Assistant");
-                }
-
+            for (var i = 0; i < messages.length; i++) {
+                var textarea = create_textarea(i, messages[i].role, messages[i].content);
                 document.getElementById("chat_content").innerHTML += textarea;
-                if (i + 1 < NUM_INPUTS) {
+                // horizontally separate
+                if (i + 1 < messages.length) {
                     document.getElementById("chat_content").innerHTML += "<hr/>\n";
                 }
             }
-
-            // testing...
+            // add the resize event listener to each textarea
             for (var i = 0; i < NUM_INPUTS; i++) {
                 textarea = document.getElementById(`textarea${i}`);
                     textarea.addEventListener('input', auto_resize_textarea);
                     auto_resize_textarea.call(textarea)
             }
-
             return;
         }
 
@@ -249,14 +260,19 @@
          * response.
          * 
          * TODO: Add updating conversation history.
+         * 
+         * @returns {null}
          */
         function submit_request() {
             // store message text from text areas
-            MESSAGES = [];
+            var contents = [];
             var i;
-            for (i = 0; i < NUM_INPUTS; i++) {
-                MESSAGES.push(document.getElementById(`textarea${i}`).value);
+            var textareas = document.getElementsByClassName("content_input");
+            for (i = 0; i < textareas.length; i++) {
+                // TODO: switch to getting from text area?
+                contents.push(document.getElementById(`textarea${i}`).value);
             }
+            // TODO: pick up here
             // do nothing for empty submission
             if (MESSAGES[MESSAGES.length - 1].trim() === "") {
                 return;
@@ -352,6 +368,7 @@
          * 
          * @param {string} response - The content string returned by the OpenAI 
          * API.
+         * @returns {null}
          */
         function display_response(response) {
             MESSAGES[MESSAGES.length - 1] = response;
@@ -367,6 +384,7 @@
          * 
          * @param {string} response - The content string returned by the OpenAI 
          * API.
+         * @returns {null}
          */
         function update_history(response) {
             if (ACTIVE_CHAT !== null) {
@@ -386,8 +404,12 @@
                 ACTIVE_CHAT = 0;
                 HISTORY[ACTIVE_CHAT].unshift(chat_name);
             }
+            if (HISTORY_LINKED) {
+                // TODO
+                ;
+            }
             populate_history();
-            set_active(ACTIVE_CHAT);
+            set_active();
             return;
         }
 
@@ -413,86 +435,80 @@
          * 
          */ 
         function rename_chat() {
-            alert("Not yet implemented...");
+            if (ACTIVE_CHAT !== null) {
+                var new_name = prompt("Enter name for chat:");
+                if (new_name !== null) {
+                    HISTORY[ACTIVE_CHAT][0] = new_name;
+                    populate_history();
+                    set_active();
+                }
+            }
         }
 
         /** 
          * 
          */ 
+        function copy_chat() {
+            if (ACTIVE_CHAT !== null) {
+                var copied_chat = JSON.parse(JSON.stringify(HISTORY[ACTIVE_CHAT]));
+                HISTORY.unshift(copied_chat);
+                ACTIVE_CHAT = 0;
+                populate_history();
+                set_active();
+            }
+        }
+
+
+        /** 
+         * 
+         */ 
         function delete_chat() {
-            alert("Not yet implemented...");
-        }
-
-        /**
-         * Creates and downloads a JSON file representation of the current 
-         * active chat.
-         */
-        function export_chat() {
-            // update messages array
-            for (var i = 0; i < MESSAGES.length; i++) {
-                MESSAGES[i] = document.getElementById(`textarea${i}`).value;
+            if (ACTIVE_CHAT !== null) {
+                var chat_name = HISTORY[ACTIVE_CHAT][0]
+                var confirm_delete = confirm(`Are you sure you want to delete: \"${chat_name}\"?`);
+                if (confirm_delete) {
+                    HISTORY.splice(ACTIVE_CHAT, 1);
+                    ACTIVE_CHAT = null;
+                    populate_history();
+                    new_chat();
+                }
             }
-            // convert array to bytes
-            const jsonString = JSON.stringify(MESSAGES);
-            const encoder = new TextEncoder();
-            const byteData = encoder.encode(jsonString);
-            // create a Blob from the byte data
-            const blob = new Blob([byteData], { type: "application/octet-stream" });
-            // create a URL for the Blob
-            const url = URL.createObjectURL(blob);
-            // create an anchor tag for downloading
-            const downloadLink = document.createElement("a");
-            downloadLink.href = url;
-            downloadLink.download = "conversation.json"; // Set the file name for download
-            // append the anchor tag to the document or trigger a click programmatically
-            document.body.appendChild(downloadLink);
-            downloadLink.click();
-            // revoke the URL when done
-            downloadLink.addEventListener('click', () => {
-                setTimeout(() => URL.revokeObjectURL(url), 100);
-            });
-            return;
         }
 
         /**
-         * Attempts to take an uploaded JSON representation of a chat and makes 
-         * it the current active chat. Does not error handle bad files (just 
-         * reload the page, buddy...).
-         */
-        function import_chat() {
-            // get uploaded file
-            const file = document.getElementById("chat_upload_file").files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    // read bytes into array
-                    const arrayBuffer = reader.result;
-                    // TODO: maybe I can skip these two conversions? go directly bytes -> string?
-                    // convert bytes to uint8
-                    const byteArray = new Uint8Array(arrayBuffer);
-                    // convert to string
-                    let stringData = new TextDecoder().decode(byteArray);
-                    // set variables for active chat, render
-                    MESSAGES = JSON.parse(stringData);
-                    NUM_INPUTS = MESSAGES.length
-                    populate_form();
-                };
-                // read the file
-                reader.readAsArrayBuffer(file);
-            }
-            return;
-        }
-
-        /**
-         * TODO: Will link with user's Google Drive account, allowing for 
-         * automatic pull and updates of user's conversation history.
+         * TODO: Will link with user's Dropbox account, allowing for automatic
+         * pull and updates of user's conversation history.
          */ 
         function link_history() {
-            alert("Not implemented yet...");
+            HISTORY_LINKED = true;
+            var dropbox_div = document.getElementById("dropbox_div");
+            dropbox_div.innerHTML = '<label for="unlink_dropbox">Dropbox linked! </label>\n';
+            dropbox_div.innerHTML += '<input type="button" class="form-control" id="unlink_dropbox" value="Unlink" onclick="unlink_history()">\n';   
+            // TODO: actual display history
         }
 
         /**
-         * TODO: Will allow you to import conversation history form a file.
+         * 
+         */ 
+        function unlink_history() {
+            HISTORY_LINKED = false;
+            var dropbox_div = document.getElementById("dropbox_div");
+            dropbox_div.innerHTML += '<label for="dropbox_access_token">Dropbox Access Token: </label>\n';
+            dropbox_div.innerHTML += '<input type="text" class="form-control" id="dropbox_access_token" placeholder="">\n';
+            dropbox_div.innerHTML += '<input type="button" class="form-control" id="link_history" value="Link Conversation History" onclick="link_history()">\n';
+            dropbox_div.innerHTML += '<input type="button" class="form-control" id="overwrite_history" value="Overwrite Conversation History" onclick="overwrite_history()">\n';
+        }
+
+        /**
+         * 
+         */ 
+        function overwrite_history() {
+            var confirm_overwrite = confirm("Are you sure? This will overwrite your currently saved conversation history on Dropbox.");
+            alert("Not implemented yet...")
+        }
+
+        /**
+         * TODO: Will allow you to import conversation history from a file.
          */ 
          function import_history() {
             // get uploaded file
@@ -565,7 +581,7 @@
         /**
          * 
          */
-        function set_active(index) {
+        function set_active() {
             var chat_link = document.getElementById(`chatlink${ACTIVE_CHAT}`);
             chat_link.classList.add("active-chat");
         }
@@ -607,6 +623,20 @@
             return;
         }
 
+        /**
+         * 
+         */ 
+        function set_history_height() {
+            var left_navbar_height = document.getElementById("left_navbar").offsetHeight;
+            var above_scrollable_height = document.getElementById("above_scrollable").offsetHeight;
+            var scrollable_left = document.getElementById("conversation_history");
+            scrollable_left.style.maxHeight = left_navbar_height - above_scrollable_height + "px";
+        }
+
+        // start with history unlinked
+        unlink_history();
+        // determine conversation history element height
+        set_history_height();
         // render on page load
         populate_form();
         </script>
