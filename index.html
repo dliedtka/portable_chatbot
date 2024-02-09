@@ -170,8 +170,8 @@
             else if (role == "user") {
                 var print_role = "User";
             }
-            else if (role == "Assistant") {
-                var print_role = role;    
+            else if (role == "assistant") {
+                var print_role = "Assistant";    
             }
             else {
                 var print_role = role;
@@ -246,7 +246,7 @@
                 }
             }
             // add the resize event listener to each textarea
-            for (var i = 0; i < NUM_INPUTS; i++) {
+            for (var i = 0; i < messages.length; i++) {
                 textarea = document.getElementById(`textarea${i}`);
                     textarea.addEventListener('input', auto_resize_textarea);
                     auto_resize_textarea.call(textarea)
@@ -255,262 +255,9 @@
         }
 
         /**
-         * Updates the global message variable based on filled out textareas, 
-         * verifies inputs, submits OpenAI API request, receives and renders 
-         * response.
-         * 
-         * TODO: Add updating conversation history.
-         * 
-         * @returns {null}
-         */
-        function submit_request() {
-            // store message text from text areas
-            var contents = [];
-            var i;
-            var textareas = document.getElementsByClassName("content_input");
-            for (i = 0; i < textareas.length; i++) {
-                // TODO: switch to getting from text area?
-                contents.push(document.getElementById(`textarea${i}`).value);
-            }
-            // TODO: pick up here
-            // do nothing for empty submission
-            if (MESSAGES[MESSAGES.length - 1].trim() === "") {
-                return;
-            }
-            // check for API key
-            var api_key_input = document.getElementById("api_key_input").value.trim();
-            if (api_key_input === "") {
-                alert("Provide your OpenAI API key.")
-                return;
-            }
-            // get model
-            var model = document.getElementById("model_select").value;
-            // create JSON request OpenAI API expects
-            var request_data = {
-                "model" : model,
-                "messages" : []
-            };
-            for (i = 0; i < NUM_INPUTS; i++) {
-                var role;
-                if (i == 0) {
-                    role = "system";
-                }
-                else if (i % 2 == 1) {
-                    role = "user";
-                }
-                else {
-                    role = "assistant";
-                }
-                request_data["messages"].push({
-                    "role" : role,
-                    "content" : MESSAGES[i]
-                });
-            }
-            //console.log("Request:");
-            //console.log(request_data);
-            // submit request to API, handle response
-            var debugging = true;
-            if (!debugging) {
-                fetch("https://api.openai.com/v1/chat/completions", {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${api_key_input}`
-                    },
-                    body: JSON.stringify(request_data)
-                })
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error('Network response was not ok');
-                    }
-                    return response.json();
-                })
-                .then(response_data => {
-                    //console.log("Response:");
-                    //console.log(response_data);
-                    // call handling function
-                    var response = response_data["choices"][0]["message"]["content"]
-                    display_response(response);
-                    update_history(response);
-                })
-                .catch(error => {
-                    console.error('There was a problem with your fetch operation:', error);
-                });
-                // "waiting" user feedback 
-                document.getElementById(`textarea${MESSAGES.length - 1}`).innerHTML = document.getElementById(`textarea${MESSAGES.length - 1}`).value;
-                document.getElementById("chat_content").innerHTML += "<hr/>\n";
-                NUM_INPUTS += 1;
-                MESSAGES.push("Waiting for response...");
-                textarea = create_textarea(NUM_INPUTS - 1, "Assistant");
-                document.getElementById("chat_content").innerHTML += textarea;
-            }
-            else {
-                // "waiting" user feedback 
-                document.getElementById(`textarea${MESSAGES.length - 1}`).innerHTML = document.getElementById(`textarea${MESSAGES.length - 1}`).value;
-                document.getElementById("chat_content").innerHTML += "<hr/>\n";
-                NUM_INPUTS += 1;
-                MESSAGES.push("Waiting for response...");
-                textarea = create_textarea(NUM_INPUTS - 1, "Assistant");
-                document.getElementById("chat_content").innerHTML += textarea;
-                // simulate delay
-                (async () => {
-                    await new Promise(resolve => setTimeout(resolve, 3000));
-                    var response = "The powerhouse of the cell is the mitochondria. It is responsible for generating the majority of the cell's supply of adenosine triphosphate (ATP), which is used as a source of chemical energy.";
-                    display_response(response);
-                    update_history(response);
-                })();
-            }
-            return;
-        }
-
-        /**
-         * Handles displaying the received API response.
-         * 
-         * @param {string} response - The content string returned by the OpenAI 
-         * API.
-         * @returns {null}
-         */
-        function display_response(response) {
-            MESSAGES[MESSAGES.length - 1] = response;
-            NUM_INPUTS += 1;
-            MESSAGES.push("");
-            populate_form();
-            return;
-        }
-
-        /**
-         * TODO: If a conversation history is active, will update the assocaited 
-         * data structure based on API response.
-         * 
-         * @param {string} response - The content string returned by the OpenAI 
-         * API.
-         * @returns {null}
-         */
-        function update_history(response) {
-            if (ACTIVE_CHAT !== null) {
-                var chat_name = HISTORY[ACTIVE_CHAT][0];
-                HISTORY[ACTIVE_CHAT] = MESSAGES;
-                HISTORY[ACTIVE_CHAT].unshift(chat_name);
-                HISTORY[ACTIVE_CHAT] = MESSAGES;
-                // move to top of history 
-                var newest = HISTORY.splice(ACTIVE_CHAT, 1);
-                HISTORY.unshift(newest[0]);
-                ACTIVE_CHAT = 0;
-            }
-            else {
-                // name chat 
-                var chat_name = "Unnamed Chat";
-                HISTORY.unshift(MESSAGES);
-                ACTIVE_CHAT = 0;
-                HISTORY[ACTIVE_CHAT].unshift(chat_name);
-            }
-            if (HISTORY_LINKED) {
-                // TODO
-                ;
-            }
-            populate_history();
-            set_active();
-            return;
-        }
-
-        /**
-         * Resets the form content to a new chat, keeping the system prompt.
-         * 
-         * TODO: If a conversation history is active, this will need to set the
-         * active conversation to a new one.
-         */ 
-        function new_chat() {
-            MESSAGES = [
-                "You are a helpful assistant.",
-                ""
-            ];
-            NUM_INPUTS = 2;
-            unset_active();
-            ACTIVE_CHAT = null;
-            populate_form();
-            return;
-        }
-
-        /**
-         * 
-         */ 
-        function rename_chat() {
-            if (ACTIVE_CHAT !== null) {
-                var new_name = prompt("Enter name for chat:");
-                if (new_name !== null) {
-                    HISTORY[ACTIVE_CHAT][0] = new_name;
-                    populate_history();
-                    set_active();
-                }
-            }
-        }
-
-        /** 
-         * 
-         */ 
-        function copy_chat() {
-            if (ACTIVE_CHAT !== null) {
-                var copied_chat = JSON.parse(JSON.stringify(HISTORY[ACTIVE_CHAT]));
-                HISTORY.unshift(copied_chat);
-                ACTIVE_CHAT = 0;
-                populate_history();
-                set_active();
-            }
-        }
-
-
-        /** 
-         * 
-         */ 
-        function delete_chat() {
-            if (ACTIVE_CHAT !== null) {
-                var chat_name = HISTORY[ACTIVE_CHAT][0]
-                var confirm_delete = confirm(`Are you sure you want to delete: \"${chat_name}\"?`);
-                if (confirm_delete) {
-                    HISTORY.splice(ACTIVE_CHAT, 1);
-                    ACTIVE_CHAT = null;
-                    populate_history();
-                    new_chat();
-                }
-            }
-        }
-
-        /**
-         * TODO: Will link with user's Dropbox account, allowing for automatic
-         * pull and updates of user's conversation history.
-         */ 
-        function link_history() {
-            HISTORY_LINKED = true;
-            var dropbox_div = document.getElementById("dropbox_div");
-            dropbox_div.innerHTML = '<label for="unlink_dropbox">Dropbox linked! </label>\n';
-            dropbox_div.innerHTML += '<input type="button" class="form-control" id="unlink_dropbox" value="Unlink" onclick="unlink_history()">\n';   
-            // TODO: actual display history
-        }
-
-        /**
-         * 
-         */ 
-        function unlink_history() {
-            HISTORY_LINKED = false;
-            var dropbox_div = document.getElementById("dropbox_div");
-            dropbox_div.innerHTML += '<label for="dropbox_access_token">Dropbox Access Token: </label>\n';
-            dropbox_div.innerHTML += '<input type="text" class="form-control" id="dropbox_access_token" placeholder="">\n';
-            dropbox_div.innerHTML += '<input type="button" class="form-control" id="link_history" value="Link Conversation History" onclick="link_history()">\n';
-            dropbox_div.innerHTML += '<input type="button" class="form-control" id="overwrite_history" value="Overwrite Conversation History" onclick="overwrite_history()">\n';
-        }
-
-        /**
-         * 
-         */ 
-        function overwrite_history() {
-            var confirm_overwrite = confirm("Are you sure? This will overwrite your currently saved conversation history on Dropbox.");
-            alert("Not implemented yet...")
-        }
-
-        /**
          * TODO: Will allow you to import conversation history from a file.
          */ 
-         function import_history() {
+        function import_history() {
             // get uploaded file
             const file = document.getElementById("history_upload_file").files[0];
             if (file) {
@@ -558,7 +305,7 @@
          * 
          */ 
         function create_chat_link(idx) {
-            var convo_name = HISTORY[idx][0];
+            var convo_name = HISTORY[idx].title;
             var chat_link = `<a href="#" class="chat-link"><div id="chatlink${idx}" class="form-group navbar-item chat-item">\n`;
             chat_link += `<p>${convo_name}</p>\n`;
             chat_link += '</div></a>\n';
@@ -570,9 +317,6 @@
          */
         function load_chat_from_history(index) {
             unset_active();
-            MESSAGES = JSON.parse(JSON.stringify(HISTORY[index])).slice(1); // deep copy
-            NUM_INPUTS = MESSAGES.length;
-            ACTIVE_CHAT = index;
             set_active(index);
             populate_form();
             return;
@@ -581,7 +325,8 @@
         /**
          * 
          */
-        function set_active() {
+        function set_active(idx) {
+            ACTIVE_CHAT = idx;
             var chat_link = document.getElementById(`chatlink${ACTIVE_CHAT}`);
             chat_link.classList.add("active-chat");
         }
@@ -597,7 +342,7 @@
         }
 
         /**
-         * TODO: Will allow you to export conversation history to a file.
+         * 
          */ 
          function export_history() {
             // TODO: any updates? thinking no
@@ -632,6 +377,240 @@
             var scrollable_left = document.getElementById("conversation_history");
             scrollable_left.style.maxHeight = left_navbar_height - above_scrollable_height + "px";
         }
+
+        /**
+         * 
+         */ 
+         function rename_chat() {
+            if (ACTIVE_CHAT !== null) {
+                var new_name = prompt("Enter name for chat:");
+                if (new_name !== null) {
+                    HISTORY[ACTIVE_CHAT].title = new_name;
+                    populate_history();
+                    set_active(ACTIVE_CHAT);
+                }
+            }
+        }
+
+        /** 
+         * 
+         */ 
+        function copy_chat() {
+            if (ACTIVE_CHAT !== null) {
+                var copied_chat = JSON.parse(JSON.stringify(HISTORY[ACTIVE_CHAT]));
+                HISTORY.unshift(copied_chat);
+                ACTIVE_CHAT = 0;
+                populate_history();
+                set_active(ACTIVE_CHAT);
+            }
+        }
+
+        /** 
+         * 
+         */ 
+        function delete_chat() {
+            if (ACTIVE_CHAT !== null) {
+                var chat_name = HISTORY[ACTIVE_CHAT].title;
+                var confirm_delete = confirm(`Are you sure you want to delete: \"${chat_name}\"?`);
+                if (confirm_delete) {
+                    HISTORY.splice(ACTIVE_CHAT, 1);
+                    ACTIVE_CHAT = null;
+                    populate_history();
+                    new_chat();
+                }
+            }
+        }
+
+        /**
+         * Resets the form content to a new chat.
+         */ 
+         function new_chat() {
+            unset_active();
+            ACTIVE_CHAT = null;
+            populate_form();
+            return;
+        }
+
+        /**
+         * Updates the global message variable based on filled out textareas, 
+         * verifies inputs, submits OpenAI API request, receives and renders 
+         * response.
+         * 
+         * TODO: Add updating conversation history.
+         * 
+         * @returns {null}
+         */
+        function submit_request() {
+            // check for API key
+            var api_key_input = document.getElementById("api_key_input").value.trim();
+            if (api_key_input === "") {
+                alert("Provide your OpenAI API key.")
+                return;
+            }
+            // store message text from text areas
+            var messages = [];
+            var textareas = document.getElementsByClassName("content_input");
+            for (var i = 0; i < textareas.length; i++) {
+                var role = "";
+                if (i == 0) {
+                    role = "system";
+                }
+                else if (i % 2 == 1) {
+                    role = "user";
+                }
+                else {
+                    role = "assistant";
+                }
+                var content = textareas[i].value;
+                messages.push({
+                    "role": role,
+                    "content": content
+                })
+            }
+            // warn for empty submission
+            if (messages[messages.length - 1].content.trim() === "") {
+                    if (!confirm("Are you sure you want to submit with an empty user input?")) {
+                        return;
+                    }
+                }
+            // get model
+            // TODO: update models?
+            var model = document.getElementById("model_select").value;
+            // create JSON request OpenAI API expects
+            var request_data = {
+                "model" : model,
+                "messages" : messages
+            };
+            //console.log("Request:");
+            //console.log(request_data);
+            // submit request to API, handle response
+            var debugging = true;
+            if (!debugging) {
+                fetch("https://api.openai.com/v1/chat/completions", {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${api_key_input}`
+                    },
+                    body: JSON.stringify(request_data)
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
+                .then(response_data => {
+                    //console.log("Response:");
+                    //console.log(response_data);
+                    // call handling function
+                    var response = response_data["choices"][0]["message"]["content"]
+                    update_history(messages, response);
+                    populate_form();
+                })
+                .catch(error => {
+                    console.error('There was a problem with your fetch operation:', error);
+                });
+                // "waiting" user feedback 
+                document.getElementById(`textarea${messages.length - 1}`).innerHTML = document.getElementById(`textarea${messages.length - 1}`).value;
+                document.getElementById("chat_content").innerHTML += "<hr/>\n";
+                messages.push({
+                    "role": "assistant",
+                    "content": "Waiting for response..."
+                });
+                textarea = create_textarea(messages.length - 1, messages[messages.length - 1].role, messages[messages.length - 1].content);
+                document.getElementById("chat_content").innerHTML += textarea;
+            }
+            else {
+                // "waiting" user feedback 
+                document.getElementById(`textarea${messages.length - 1}`).innerHTML = document.getElementById(`textarea${messages.length - 1}`).value;
+                document.getElementById("chat_content").innerHTML += "<hr/>\n";
+                messages.push({
+                    "role": "assistant",
+                    "content": "Waiting for response..."
+                });
+                textarea = create_textarea(messages.length - 1, messages[messages.length - 1].role, messages[messages.length - 1].content);
+                document.getElementById("chat_content").innerHTML += textarea;
+                // simulate delay
+                (async () => {
+                    await new Promise(resolve => setTimeout(resolve, 3000));
+                    var response = "The powerhouse of the cell is the mitochondria. It is responsible for generating the majority of the cell's supply of adenosine triphosphate (ATP), which is used as a source of chemical energy.";
+                    update_history(messages, response);
+                    populate_form();
+                })();
+            }
+            return;
+        }
+
+        /**
+         * 
+         */
+        function update_history(messages, response) {
+            unset_active();
+            messages[messages.length - 1].content = response;    
+            if (ACTIVE_CHAT !== null) {
+                HISTORY[ACTIVE_CHAT].messages = messages;
+                // move to top of history 
+                var newest = HISTORY.splice(ACTIVE_CHAT, 1);
+                HISTORY.unshift(newest[0]);
+                ACTIVE_CHAT = 0;
+            }
+            else {
+                // name chat 
+                var chat_name = "Unnamed Chat";
+                HISTORY.unshift({
+                    "title": chat_name,
+                    "messages": messages
+                });
+                ACTIVE_CHAT = 0;
+            }
+            if (HISTORY_LINKED) {
+                // TODO
+                ;
+            }
+            populate_history();
+            set_active(ACTIVE_CHAT);
+            return;
+        }
+
+        /**
+         * TODO: Will link with user's Dropbox account, allowing for automatic
+         * pull and updates of user's conversation history.
+         */ 
+        function link_history() {
+            HISTORY_LINKED = true;
+            var dropbox_div = document.getElementById("dropbox_div");
+            dropbox_div.innerHTML = '<label for="unlink_dropbox">Dropbox linked! </label>\n';
+            dropbox_div.innerHTML += '<input type="button" class="form-control" id="unlink_dropbox" value="Unlink" onclick="unlink_history()">\n';   
+            // TODO: actual display history
+        }
+
+        /**
+         * 
+         */ 
+        function unlink_history() {
+            HISTORY_LINKED = false;
+            var dropbox_div = document.getElementById("dropbox_div");
+            dropbox_div.innerHTML += '<label for="dropbox_access_token">Dropbox Access Token: </label>\n';
+            dropbox_div.innerHTML += '<input type="text" class="form-control" id="dropbox_access_token" placeholder="">\n';
+            dropbox_div.innerHTML += '<input type="button" class="form-control" id="link_history" value="Link Conversation History" onclick="link_history()">\n';
+            dropbox_div.innerHTML += '<input type="button" class="form-control" id="overwrite_history" value="Overwrite Conversation History" onclick="overwrite_history()">\n';
+        }
+
+        /**
+         * 
+         */ 
+        function overwrite_history() {
+            var confirm_overwrite = confirm("Are you sure? This will overwrite your currently saved conversation history on Dropbox.");
+            alert("Not implemented yet...")
+        }
+
+        
+
+
+
+
+
 
         // start with history unlinked
         unlink_history();
