@@ -122,8 +122,8 @@
             <div class="form-group navbar-item">
                 <label for="model_select">Model: </label>
                 <select class="form-control" id="model_select">
-                    <option>gpt-4-1106-preview</option>
-                    <option>gpt-3.5-turbo-1106</option>
+                    <option>gpt-4-0125-preview</option>
+                    <option>gpt-3.5-turbo-0125</option>
                 </select>
             </div>
             <br/><hr style="border-top: 1px solid #ddd;"/><br/>
@@ -153,6 +153,7 @@
         // stores whether the conversation history is linked with the Dropbox 
         // API (and should be updated)
         var HISTORY_LINKED = false;
+        var DROPBOX_ACCESS_TOKEN = null;
 
         /**
          * Creates a string containing the HTML needed for a conversation 
@@ -388,6 +389,9 @@
                     HISTORY[ACTIVE_CHAT].title = new_name;
                     populate_history();
                     set_active(ACTIVE_CHAT);
+                    if (HISTORY_LINKED) {
+                        push_history();
+                    }
                 }
             }
         }
@@ -402,6 +406,9 @@
                 ACTIVE_CHAT = 0;
                 populate_history();
                 set_active(ACTIVE_CHAT);
+                if (HISTORY_LINKED) {
+                        push_history();
+                }
             }
         }
 
@@ -416,6 +423,9 @@
                     HISTORY.splice(ACTIVE_CHAT, 1);
                     ACTIVE_CHAT = null;
                     populate_history();
+                    if (HISTORY_LINKED) {
+                        push_history();
+                    }
                     new_chat();
                 }
             }
@@ -484,7 +494,7 @@
             //console.log("Request:");
             //console.log(request_data);
             // submit request to API, handle response
-            var debugging = true;
+            var debugging = false;
             if (!debugging) {
                 fetch("https://api.openai.com/v1/chat/completions", {
                     method: 'POST',
@@ -565,8 +575,7 @@
                 ACTIVE_CHAT = 0;
             }
             if (HISTORY_LINKED) {
-                // TODO
-                ;
+                push_history();            
             }
             populate_history();
             set_active(ACTIVE_CHAT);
@@ -574,15 +583,81 @@
         }
 
         /**
+         * 
+         */
+        function push_history() {
+            async function uploadStringToDropbox(accessToken, dropboxFilePath, contentString) {
+                const url = 'https://content.dropboxapi.com/2/files/upload';
+                const headers = {
+                    'Authorization': `Bearer ${accessToken}`,
+                    'Dropbox-API-Arg': JSON.stringify({ path: dropboxFilePath, mode: 'overwrite', autorename: true, mute: false }),
+                    'Content-Type': 'application/octet-stream'
+                };
+                try {
+                    const response = await fetch(url, {
+                        method: 'POST',
+                        headers: headers,
+                        body: contentString
+                    });
+
+                    return response.json();
+                } catch (error) {
+                    console.error('Error uploading string to file:', error);
+                }
+            }
+            // Usage
+            const dropboxFilePath = '/history.json'; // Path where you want to create or update the file in Dropbox
+            uploadStringToDropbox(DROPBOX_ACCESS_TOKEN, dropboxFilePath, JSON.stringify(HISTORY));
+        }
+
+        /**
          * TODO: Will link with user's Dropbox account, allowing for automatic
          * pull and updates of user's conversation history.
          */ 
         function link_history() {
-            HISTORY_LINKED = true;
+            DROPBOX_ACCESS_TOKEN = document.getElementById("dropbox_access_token").value.trim();
+            
             var dropbox_div = document.getElementById("dropbox_div");
             dropbox_div.innerHTML = '<label for="unlink_dropbox">Dropbox linked! </label>\n';
             dropbox_div.innerHTML += '<input type="button" class="form-control" id="unlink_dropbox" value="Unlink" onclick="unlink_history()">\n';   
+            
             // TODO: actual display history
+            async function downloadFileFromDropbox(accessToken, filePath) {
+                const url = 'https://content.dropboxapi.com/2/files/download';
+                const headers = {
+                    'Authorization': `Bearer ${accessToken}`,
+                    'Dropbox-API-Arg': JSON.stringify({ path: filePath })
+                };
+
+                try {
+                    const response = await fetch(url, {
+                        method: 'POST',
+                        headers: headers
+                    });
+
+                    if (response.status == 409) {
+                        if (confirm("No previous history file found. Create one?")) {
+                            push_history();
+                            populate_history();
+                            HISTORY_LINKED = true;
+                        }
+                    }
+                    else {
+                        const blob = await response.blob();
+                        const text = await blob.text();
+                        HISTORY = JSON.parse(text);
+                        populate_history();
+                        HISTORY_LINKED = true;
+                    }
+                } catch (error) {
+                    console.error('Error downloading file:', error);
+                    // TODO: no history found, option to create
+
+                }
+            }
+            // Usage
+            const downloadFilePath = '/history.json'; // Path of the file you want to download from Dropbox
+            downloadFileFromDropbox(DROPBOX_ACCESS_TOKEN, downloadFilePath);
         }
 
         /**
