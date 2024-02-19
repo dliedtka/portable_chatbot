@@ -66,7 +66,43 @@
     <!-- top navbar -->
     <nav class="navbar navbar-expand-lg navbar-light bg-light top-nav">
         <a class="navbar-brand" href="#">Portable ChatUI</a>
+        <ul class="navbar-nav">
+            <li class="nav-item">
+                <a class="nav-link" href="#" id="about_link">About</a>
+            </li>
+        </ul>
     </nav>
+    <!-- modal -->
+    <div class="modal fade" id="about_modal" tabindex="-1" aria-labelledby="aboutModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="aboutModalLabel">About</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <p>Portable ChatUI provides a no-frills UI that allows you to interact with the OpenAI API.</p>
+                    <p>For many OpenAI customers, GPT-3.5, available for free via ChatGPT, is sufficient for many tasks. GPT-4 may be needed for more complex tasks, but that need is infrequent enough that it is not cost-effective for users to pay $20 per month for access to GPT-4 via ChatGPT Plus. Solutions like Portable ChatUI allow users to pay only for what they use (see <a href="https://openai.com/pricing">OpenAI API pricing).</a>
+                    <p>Portable ChatUI replicates basic ChatGPT functionality, such as saving the user's conversation history (available by manually by importing/exporting a conversation history file or by connecting to your Dropbox account, see instruction below). Hosted ChatUI does not currently support other ChatGPT Plus features, such as image generation, multi-modal prompts, etc.</p>
+                    <p>Portable ChatUI never stores your API key or conversation history. Request to the OpenAI API occur client-side. My servers never see any of your data.</p>
+                    <p>You can download the HTML source for Portable ChatUI in environments where my hosted version is unavailable and other UI solutions are unavailable (say, for example, you can't install npm at work).</p>
+                    <p>If you want a solution where I manage your conversation history for you, check out <a href="/hosted_chatui">Hosted ChatUI</a></p>. 
+                    <h5>Contact</h5>
+                    <p>I would love to receive any feedback:</p>
+                    <p><a href="mailto:dliedtka@gmail.com">dliedtka@gmail.com</a></p>
+                    <p>More contact info available at <a href="https://davidliedtka.com">davidliedtka.com</a>.</p>
+                    <h5>Dropbox Instructions</h5>
+                    <p>More detailed instructions coming eventually... But essentially you need to create a Dropbox developer app, call it portable_chatui, give it read/write file permissions, and get an access token. Then your conversation history file will automatically be pulled/pushed to your Dropbox.</p>
+                    <p>I made an app that does this, but it's not a "production" application. If you send me an email, I can add your to the user list. I used <a href="/hosted_chatui">Hosted ChatUI</a> which does not require this, so I can't promise spending a ton of time here.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
     <div class="wrapper">
         <!-- left navbar -->
         <nav class="left-nav bg-light" id="left_navbar">
@@ -95,7 +131,7 @@
                 <div class="form-group navbar-item">
                     <p>Your conversation history will display here if you choose to link with Dropbox (recommended) or manually import a conversation history file.</p>
                     <!-- TODO: link to website -->
-                    <p>Further details and instructions are available <a href="#">here</a>.</p>
+                    <p>Further details and instructions will be available in the about tab...</p>
                 </div>
             </div>
         </nav>
@@ -144,6 +180,16 @@
     <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.0.5/dist/umd/popper.min.js"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script type="text/javascript">
+        // jquery for modal
+        $(document).ready(function(){
+            $('#about_link').click(function(e) {
+                e.preventDefault(); // Prevent the default anchor behavior
+                $('#about_modal').modal('show'); // Use Bootstrap's modal method to show the modal
+            });
+        });
+    </script>
     <script type="text/javascript">
         // globals
         // array of past conversations
